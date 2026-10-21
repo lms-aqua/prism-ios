@@ -1,0 +1,5 @@
+# Fresh CI simulators should show the public sign-in screen.
+app "com.codystechcorner.prism.ios" fresh
+assert_exists ~"Sign in" timeout:60000
+screenshot
+assert_not_exists ~"Couldn't reach Prism"

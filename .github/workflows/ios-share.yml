@@ -43,6 +43,11 @@ on:
         required: false
         type: string
         default: '30m'
+      share_simulator:
+        description: 'Keep the simulator available in MobAI after verification'
+        required: false
+        type: boolean
+        default: true
       flutter_version:
         description: 'Flutter version to use (e.g., 3.24.0). Empty means latest stable.'
         required: false
@@ -117,6 +122,8 @@ jobs:
         uses: MobAI-App/mobai-ci@v1
         with:
           boot-sim: true # UDID lands in $MOBAI_SIM_UDID
+          sim-slim-only: widgets
+          decision-cache: false
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -671,10 +678,31 @@ jobs:
           path: DerivedData
           key: deriveddata-sim-${{ github.run_id }}
 
+      - name: Verify Prism on the simulator
+        run: |
+          mobai-ci validate ./flows
+          mobai-ci test ./flows \
+            --device "$MOBAI_SIM_UDID" \
+            --app "${{ steps.build.outputs.app_path }}" \
+            --wait-device 4m \
+            --output reports \
+            --device-logs \
+            --progress
+
+      - name: Upload simulator verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prism-simulator-evidence
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 7
+
       # Installs the build on the simulator and publishes it to the MobAI app.
       # The step (and the job) stay running until the simulator is released
       # there or goes unused.
       - name: Share the simulator
+        if: github.event_name != 'workflow_dispatch' || inputs.share_simulator
         env:
           MOBAI_API_KEY: ${{ secrets.MOBAI_API_KEY }}
         run: |

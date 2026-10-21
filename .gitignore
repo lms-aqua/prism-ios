@@ -9,3 +9,5 @@ xcuserdata/
 *.p12
 *.mobileprovision
 AuthKey_*.p8
+.mobai/
+reports/
