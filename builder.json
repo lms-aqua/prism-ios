@@ -1,0 +1,22 @@
+{
+  "project": "Prism",
+  "platform": "ios",
+  "github": {
+    "owner": "lms-aqua",
+    "repo": "prism-ios"
+  },
+  "codemagic": {},
+  "bitrise": {},
+  "ios": {
+    "path": ".",
+    "scheme": "Prism",
+    "bundleId": "com.codystechcorner.prism.ios",
+    "configuration": "Debug"
+  },
+  "flutter": {
+    "watch": {}
+  },
+  "reactNative": {},
+  "kmp": {},
+  "mobai": {}
+}
