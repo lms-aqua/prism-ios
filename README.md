@@ -61,8 +61,9 @@ Device builds require a signing team. No third-party Swift dependencies are used
 
 ## Current limits
 
-The native implementation needs remote compilation and authenticated end-to-end
-verification. Native capability reporting uses a conservative H.264/AAC baseline.
+Native compilation, simulator installation and the login-screen UI smoke test
+passed in Actions run 39684099206. Authenticated browsing and playback still need
+end-to-end verification. Native capability reporting uses a conservative H.264/AAC baseline.
 Transcoded streams start at the server offset; native player seeking is limited
 to the HLS timeline the server provides. Full-file server-side seeking, external
 subtitle selection, audio-track switching and downloads are not implemented.
@@ -88,3 +89,5 @@ screenshots and failures, fix, repeat. GitHub runner queues and simulator setup
 still take time. The fastest native Swift loop needs a persistent Mac with Xcode,
 a running simulator and retained DerivedData; GitHub hosted jobs start afresh.
 Builder's Flutter/React Native hot reload does not apply to this SwiftUI app.
+The simulator workflow compiles before booting the simulator, so compiler failures
+return without waiting for device preparation. Evidence is uploaded as an artifact.
