@@ -1,9 +1,10 @@
 # Prism iOS
 
-An iOS 26+ SwiftUI app for https://prism.codystechcorner.com/ using WKWebView.
-The website provides sign-in, library browsing, and playback. Cookies and website
-storage persist across launches. The shell enables inline video, AirPlay, and
-Picture in Picture; actual availability depends on the website player and media.
+An iOS 26+ native SwiftUI client for https://prism.codystechcorner.com/.
+Includes username/password/MFA login, movie and show libraries, continue watching,
+search, title details, seasons/episodes and AVPlayer HLS playback. Each install
+obtains its own cookie session; no account credentials are embedded in the app.
+Playback follows the server-selected mode, including transcoding when needed.
 
 ## Build with MobAI iOS Builder on Windows
 
@@ -60,9 +61,14 @@ Device builds require a signing team. No third-party Swift dependencies are used
 
 ## Current limits
 
-This is a website-backed first version, with no native library API or downloads.
-A native library/player needs the site's documented authentication and media API
-contract. Playback and login have not yet been verified on an iOS device.
+The native implementation needs remote compilation and authenticated end-to-end
+verification. Native capability reporting uses a conservative H.264/AAC baseline.
+Transcoded streams start at the server offset; native player seeking is limited
+to the HLS timeline the server provides. Full-file server-side seeking, external
+subtitle selection, audio-track switching and downloads are not implemented.
+Heartbeat, progress and stop use the observed web-client API contracts but still
+need authenticated verification on iOS. Device installation requires Apple signing.
+
 ## Automated simulator verification
 
 The iOS Simulator workflow now installs the built app and runs `flows/launch.mob`

@@ -1,0 +1,910 @@
+{
+  "checkedAt": "2026-10-21T21:36:33.283Z",
+  "scope": "Authenticated read-only schema discovery. Playback not started or verified.",
+  "results": [
+    {
+      "path": "/api/auth/status",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "setup_required": "boolean"
+      }
+    },
+    {
+      "path": "/api/auth/me",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "user": {
+          "id": "number",
+          "name": "string",
+          "role": "string",
+          "seerr_user_id": "number",
+          "active": "boolean",
+          "tour_seen": "boolean",
+          "spoiler_shield": "boolean",
+          "mfa_enabled": "boolean",
+          "mfa_verified": "boolean",
+          "admin_mfa_required": "boolean"
+        }
+      }
+    },
+    {
+      "path": "/api/library/movies?limit=1&offset=0",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "items": {
+          "type": "array",
+          "sample": {
+            "id": "number",
+            "kind": "string",
+            "episode": "null",
+            "title": "string",
+            "year": "number",
+            "overview": "string",
+            "tmdb_id": "number",
+            "poster_url": "string",
+            "backdrop_url": "string",
+            "duration": "number",
+            "effective_runtime": "number",
+            "segments_known": "boolean",
+            "available": "boolean",
+            "progress": "null",
+            "watchlisted": "boolean",
+            "added_at": "number"
+          }
+        },
+        "total": "number"
+      }
+    },
+    {
+      "path": "/api/library/shows?limit=1&offset=0",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "items": {
+          "type": "array",
+          "sample": {
+            "id": "number",
+            "title": "string",
+            "year": "number",
+            "overview": "string",
+            "poster_url": "null",
+            "backdrop_url": "null",
+            "seasons_count": "number",
+            "episodes_count": "number",
+            "available_episodes_count": "number",
+            "watched_episodes_count": "number",
+            "next_item_id": "number",
+            "tmdb_tv_id": "null",
+            "details": "null"
+          }
+        },
+        "total": "number"
+      }
+    },
+    {
+      "path": "/api/library/recent",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "items": {
+          "type": "array",
+          "sample": {
+            "id": "number",
+            "kind": "string",
+            "episode": "null",
+            "title": "string",
+            "year": "number",
+            "overview": "string",
+            "tmdb_id": "number",
+            "poster_url": "string",
+            "backdrop_url": "string",
+            "duration": "number",
+            "effective_runtime": "number",
+            "segments_known": "boolean",
+            "available": "boolean",
+            "progress": "null",
+            "watchlisted": "boolean",
+            "added_at": "number"
+          }
+        }
+      }
+    },
+    {
+      "path": "/api/library/continue",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "items": {
+          "type": "array",
+          "sample": {
+            "id": "number",
+            "kind": "string",
+            "episode": {
+              "show_id": "number",
+              "show_title": "string",
+              "season_number": "number",
+              "episode_number": "number",
+              "end_number": "null",
+              "next_item_id": "null"
+            },
+            "title": "string",
+            "year": "number",
+            "overview": "string",
+            "tmdb_id": "null",
+            "poster_url": "null",
+            "backdrop_url": "null",
+            "duration": "number",
+            "effective_runtime": "number",
+            "segments_known": "boolean",
+            "available": "boolean",
+            "progress": {
+              "position": "number",
+              "duration": "number",
+              "completed": "boolean",
+              "started": "boolean",
+              "finished": "boolean"
+            },
+            "watchlisted": "boolean",
+            "added_at": "number"
+          }
+        }
+      }
+    },
+    {
+      "path": "/api/library/backlog",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "items": {
+          "type": "array",
+          "sample": null
+        }
+      }
+    },
+    {
+      "path": "/api/library/status",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "last_scan": {
+          "id": "number",
+          "state": "string",
+          "scanned": "number",
+          "added": "number",
+          "updated": "number",
+          "missing": "number",
+          "failed": "number",
+          "error_code": "null",
+          "started_at": "number",
+          "finished_at": "number"
+        },
+        "media_root_configured": "boolean"
+      }
+    },
+    {
+      "path": "/api/library/facets?kind=movie",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "genres": {
+          "type": "array",
+          "sample": {
+            "value": "string",
+            "count": "number"
+          }
+        },
+        "ratings": {
+          "type": "array",
+          "sample": {
+            "value": "string",
+            "count": "number"
+          }
+        },
+        "decades": {
+          "type": "array",
+          "sample": {
+            "value": "number",
+            "count": "number"
+          }
+        },
+        "video": {
+          "type": "array",
+          "sample": {
+            "value": "string",
+            "count": "number"
+          }
+        }
+      }
+    },
+    {
+      "path": "/api/library/facets?kind=episode",
+      "status": 422,
+      "contentType": "application/json",
+      "errorCode": "VALIDATION",
+      "schema": {
+        "code": "string",
+        "message": "string",
+        "request_id": "string",
+        "retryable": "boolean"
+      }
+    },
+    {
+      "path": "/api/search?q=test&limit=1",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "query": "string",
+        "year": "null",
+        "limit": "number",
+        "films": {
+          "type": "array",
+          "sample": {
+            "id": "number",
+            "title": "string",
+            "year": "number",
+            "poster_url": "string"
+          }
+        },
+        "shows": {
+          "type": "array",
+          "sample": null
+        },
+        "episodes": {
+          "type": "array",
+          "sample": null
+        }
+      }
+    },
+    {
+      "path": "/api/watchlist",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "items": {
+          "type": "array",
+          "sample": null
+        }
+      }
+    },
+    {
+      "path": "/api/playlists",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "playlists": {
+          "type": "array",
+          "sample": null
+        }
+      }
+    },
+    {
+      "path": "/api/me/history?limit=1",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "items": {
+          "type": "array",
+          "sample": {
+            "id": "number",
+            "kind": "string",
+            "episode": {
+              "show_id": "number",
+              "show_title": "string",
+              "season_number": "number",
+              "episode_number": "number",
+              "end_number": "null",
+              "next_item_id": "null"
+            },
+            "title": "string",
+            "year": "number",
+            "overview": "string",
+            "tmdb_id": "null",
+            "poster_url": "null",
+            "backdrop_url": "null",
+            "duration": "number",
+            "effective_runtime": "number",
+            "segments_known": "boolean",
+            "available": "boolean",
+            "progress": {
+              "position": "number",
+              "duration": "number",
+              "completed": "boolean",
+              "started": "boolean",
+              "finished": "boolean"
+            },
+            "watchlisted": "boolean",
+            "added_at": "number",
+            "watched_at": "number",
+            "finished": "boolean"
+          }
+        },
+        "next_cursor": "string"
+      }
+    },
+    {
+      "path": "/api/me/home-layout",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "sections": {
+          "type": "array",
+          "sample": {
+            "id": "string",
+            "enabled": "boolean",
+            "label": "string",
+            "description": "string"
+          }
+        },
+        "customised": "boolean"
+      }
+    },
+    {
+      "path": "/api/settings",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "general": {
+          "name": "string",
+          "tagline": "string"
+        },
+        "playback": {
+          "default_quality": "string",
+          "audio_language": "string",
+          "subtitle_language": "string",
+          "cache_cap_bytes": "number"
+        },
+        "maintenance": {
+          "enabled": "boolean",
+          "message": "string"
+        },
+        "seerr_request_profiles": {
+          "allowed_request_profile_ids": {
+            "type": "array",
+            "sample": null
+          },
+          "allowed_root_folder_ids": {
+            "type": "array",
+            "sample": null
+          },
+          "allowed_server_ids": {
+            "type": "array",
+            "sample": null
+          },
+          "default_request_profile_id": "null",
+          "default_root_folder_id": "null",
+          "default_server_id": "null"
+        },
+        "limits": {
+          "max_transcodes": "number",
+          "max_remuxes": "number",
+          "cpu_threads": "number",
+          "min_free_bytes": "number"
+        },
+        "integrations": {
+          "seerr_configured": "boolean",
+          "tmdb_configured": "boolean",
+          "metadata_source": "string"
+        },
+        "plugins": {
+          "type": "array",
+          "sample": "string"
+        }
+      }
+    },
+    {
+      "path": "/api/settings/maintenance",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "enabled": "boolean",
+        "message": "string"
+      }
+    },
+    {
+      "path": "/api/notices",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "notices": {
+          "type": "array",
+          "sample": null
+        },
+        "unread": "number",
+        "preferences": {
+          "commentary": "boolean",
+          "automation": "boolean",
+          "subscriptions": "boolean"
+        }
+      }
+    },
+    {
+      "path": "/api/shelves",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "shelves": {
+          "type": "array",
+          "sample": null
+        }
+      }
+    },
+    {
+      "path": "/api/plugins/home",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "cards": {
+          "type": "array",
+          "sample": null
+        }
+      }
+    },
+    {
+      "path": "/api/watch-link/supported",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "available": "boolean",
+        "sites": {
+          "type": "array",
+          "sample": "string"
+        }
+      }
+    },
+    {
+      "path": "/api/items/7676",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "id": "number",
+        "kind": "string",
+        "episode": "null",
+        "title": "string",
+        "year": "number",
+        "overview": "string",
+        "tmdb_id": "number",
+        "poster_url": "string",
+        "backdrop_url": "string",
+        "duration": "number",
+        "effective_runtime": "number",
+        "segments_known": "boolean",
+        "available": "boolean",
+        "progress": "null",
+        "watchlisted": "boolean",
+        "added_at": "number",
+        "details": "null",
+        "files": {
+          "type": "array",
+          "sample": {
+            "id": "number",
+            "duration": "number",
+            "container": "string",
+            "video_codec": "string",
+            "audio_codec": "string",
+            "width": "number",
+            "height": "number",
+            "hdr": "boolean",
+            "tracks": {
+              "type": "array",
+              "sample": {
+                "index": "number",
+                "type": "string",
+                "codec": "string",
+                "language": "string",
+                "title": "string",
+                "default": "boolean",
+                "forced": "boolean",
+                "supported": "boolean"
+              }
+            },
+            "available": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "path": "/api/items/7676/subtitles",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "subtitles": {
+          "type": "array",
+          "sample": null
+        },
+        "search_available": "boolean",
+        "writes_allowed": "boolean"
+      }
+    },
+    {
+      "path": "/api/items/7676/segments",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "segments": {
+          "type": "array",
+          "sample": null
+        }
+      }
+    },
+    {
+      "path": "/api/items/7676/chapters",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "chapters": {
+          "type": "array",
+          "sample": null
+        }
+      }
+    },
+    {
+      "path": "/api/items/7676/bookmarks",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "bookmarks": {
+          "type": "array",
+          "sample": null
+        }
+      }
+    },
+    {
+      "path": "/api/items/7676/provenance",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "item_id": "number",
+        "requested": "null",
+        "grab": {
+          "id": "number",
+          "download_id": "string",
+          "at": "string",
+          "release": "string",
+          "indexer": "string",
+          "quality": "string",
+          "profile": "null",
+          "score": "number"
+        },
+        "imported": {
+          "at": "number",
+          "files": "number",
+          "size_bytes": "number"
+        },
+        "watched": "null",
+        "unavailable": {
+          "requested": {
+            "code": "string",
+            "detail": "string"
+          },
+          "watched": {
+            "code": "string",
+            "detail": "string"
+          }
+        },
+        "refusals": {
+          "type": "array",
+          "sample": null
+        }
+      }
+    },
+    {
+      "path": "/api/items/7676/commentary",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "tracks": {
+          "type": "array",
+          "sample": null
+        }
+      }
+    },
+    {
+      "path": "/api/plugins/title/7676",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "panels": {
+          "type": "array",
+          "sample": {
+            "kind": "string",
+            "service": "string",
+            "found": "boolean",
+            "reason": "null",
+            "title": "string",
+            "monitored": "boolean",
+            "has_file": "boolean",
+            "quality": "string",
+            "size_bytes": "number",
+            "profile": "string",
+            "profile_id": "number",
+            "profiles": {
+              "type": "array",
+              "sample": {
+                "id": "number",
+                "name": "string"
+              }
+            },
+            "download": "null",
+            "can_delete": "boolean",
+            "plugin": "string"
+          }
+        }
+      }
+    },
+    {
+      "path": "/api/shows/148",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "id": "number",
+        "title": "string",
+        "year": "number",
+        "overview": "string",
+        "poster_url": "null",
+        "backdrop_url": "null",
+        "seasons_count": "number",
+        "episodes_count": "number",
+        "available_episodes_count": "number",
+        "watched_episodes_count": "number",
+        "next_item_id": "number",
+        "tmdb_tv_id": "null",
+        "details": "null",
+        "seasons": {
+          "type": "array",
+          "sample": {
+            "id": "number",
+            "number": "number",
+            "title": "string",
+            "episodes_count": "number",
+            "available_episodes_count": "number",
+            "watched_episodes_count": "number"
+          }
+        },
+        "next_item": {
+          "id": "number",
+          "kind": "string",
+          "episode": {
+            "show_id": "number",
+            "show_title": "string",
+            "season_number": "number",
+            "episode_number": "number",
+            "end_number": "null",
+            "next_item_id": "number"
+          },
+          "title": "string",
+          "year": "number",
+          "overview": "string",
+          "tmdb_id": "null",
+          "poster_url": "null",
+          "backdrop_url": "null",
+          "duration": "number",
+          "effective_runtime": "number",
+          "segments_known": "boolean",
+          "available": "boolean",
+          "progress": "null",
+          "watchlisted": "boolean",
+          "added_at": "number",
+          "details": "null",
+          "files": {
+            "type": "array",
+            "sample": {
+              "id": "number",
+              "duration": "number",
+              "container": "string",
+              "video_codec": "string",
+              "audio_codec": "string",
+              "width": "number",
+              "height": "number",
+              "hdr": "boolean",
+              "tracks": {
+                "type": "array",
+                "sample": {
+                  "index": "number",
+                  "type": "string",
+                  "codec": "string",
+                  "language": "string",
+                  "title": "string",
+                  "default": "boolean",
+                  "forced": "boolean",
+                  "supported": "boolean"
+                }
+              },
+              "available": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "/api/plugins/show/148",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "panels": {
+          "type": "array",
+          "sample": {
+            "kind": "string",
+            "service": "string",
+            "found": "boolean",
+            "reason": "null",
+            "title": "string",
+            "monitored": "boolean",
+            "on_disk": "number",
+            "total": "number",
+            "size_bytes": "number",
+            "profile": "string",
+            "profile_id": "number",
+            "profiles": {
+              "type": "array",
+              "sample": {
+                "id": "number",
+                "name": "string"
+              }
+            },
+            "seasons": {
+              "type": "array",
+              "sample": {
+                "number": "number",
+                "monitored": "boolean",
+                "on_disk": "number",
+                "total": "number"
+              }
+            },
+            "download": "null",
+            "can_delete": "boolean",
+            "plugin": "string"
+          }
+        }
+      }
+    },
+    {
+      "path": "/api/shows/148/seasons/1?limit=1&offset=0",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "show": {
+          "id": "number",
+          "title": "string",
+          "year": "number",
+          "overview": "string",
+          "poster_url": "null",
+          "backdrop_url": "null",
+          "seasons_count": "number",
+          "episodes_count": "number",
+          "available_episodes_count": "number",
+          "watched_episodes_count": "number",
+          "next_item_id": "number",
+          "tmdb_tv_id": "null",
+          "details": "null"
+        },
+        "season": {
+          "id": "number",
+          "number": "number",
+          "title": "string"
+        },
+        "episodes": {
+          "type": "array",
+          "sample": {
+            "id": "number",
+            "kind": "string",
+            "episode": {
+              "show_id": "number",
+              "show_title": "string",
+              "season_number": "number",
+              "episode_number": "number",
+              "end_number": "null",
+              "next_item_id": "number"
+            },
+            "title": "string",
+            "year": "number",
+            "overview": "string",
+            "tmdb_id": "null",
+            "poster_url": "null",
+            "backdrop_url": "null",
+            "duration": "number",
+            "effective_runtime": "number",
+            "segments_known": "boolean",
+            "available": "boolean",
+            "progress": "null",
+            "watchlisted": "boolean",
+            "added_at": "number",
+            "details": "null",
+            "files": {
+              "type": "array",
+              "sample": {
+                "id": "number",
+                "duration": "number",
+                "container": "string",
+                "video_codec": "string",
+                "audio_codec": "string",
+                "width": "number",
+                "height": "number",
+                "hdr": "boolean",
+                "tracks": {
+                  "type": "array",
+                  "sample": {
+                    "index": "number",
+                    "type": "string",
+                    "codec": "string",
+                    "language": "string",
+                    "title": "string",
+                    "default": "boolean",
+                    "forced": "boolean",
+                    "supported": "boolean"
+                  }
+                },
+                "available": "boolean"
+              }
+            }
+          }
+        },
+        "total": "number",
+        "limit": "number",
+        "offset": "number"
+      }
+    },
+    {
+      "path": "/api/items/6423/next",
+      "status": 200,
+      "contentType": "application/json",
+      "schema": {
+        "item": {
+          "id": "number",
+          "kind": "string",
+          "episode": {
+            "show_id": "number",
+            "show_title": "string",
+            "season_number": "number",
+            "episode_number": "number",
+            "end_number": "null",
+            "next_item_id": "number"
+          },
+          "title": "string",
+          "year": "number",
+          "overview": "string",
+          "tmdb_id": "null",
+          "poster_url": "null",
+          "backdrop_url": "null",
+          "duration": "number",
+          "effective_runtime": "number",
+          "segments_known": "boolean",
+          "available": "boolean",
+          "progress": "null",
+          "watchlisted": "boolean",
+          "added_at": "number",
+          "details": "null",
+          "files": {
+            "type": "array",
+            "sample": {
+              "id": "number",
+              "duration": "number",
+              "container": "string",
+              "video_codec": "string",
+              "audio_codec": "string",
+              "width": "number",
+              "height": "number",
+              "hdr": "boolean",
+              "tracks": {
+                "type": "array",
+                "sample": {
+                  "index": "number",
+                  "type": "string",
+                  "codec": "string",
+                  "language": "string",
+                  "title": "string",
+                  "default": "boolean",
+                  "forced": "boolean",
+                  "supported": "boolean"
+                }
+              },
+              "available": "boolean"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

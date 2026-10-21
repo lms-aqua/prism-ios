@@ -1,0 +1,21 @@
+{
+  "capturedAt": "2026-10-21T21:41:07.546Z",
+  "method": "POST",
+  "path": "/api/playback/sessions",
+  "blockedBeforeSend": true,
+  "requestBody": {
+    "movie_id": 6003,
+    "quality": "original",
+    "position": 3510.759873,
+    "capabilities": {
+      "h264": true,
+      "aac": true,
+      "native_hls": true,
+      "hevc": false,
+      "hevc_main10": true,
+      "ac3": false,
+      "eac3": false
+    },
+    "audio_index": 1
+  }
+}
