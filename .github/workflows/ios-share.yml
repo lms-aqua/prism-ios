@@ -670,13 +670,18 @@ jobs:
           key: deriveddata-sim-${{ github.run_id }}
 
       # Boot only after compilation succeeds, so code errors fail quickly.
-      - name: Install mobai-ci + boot simulator
+      - name: Install mobai-ci
         uses: MobAI-App/mobai-ci@v1
         with:
-          boot-sim: true # UDID lands in $MOBAI_SIM_UDID
-          sim-slim-only: widgets
-          sim-cache-key: prism-native-v2
           decision-cache: false
+
+      # Restored simulator archives failed extraction/cloning on hosted runners.
+      # Keep DerivedData caching, but create this job's simulator on its host.
+      - name: Boot fresh simulator
+        run: |
+          set -euo pipefail
+          UDID=$(mobai-ci sim boot --device-type "iPhone 16 Pro" --runtime latest --slim-only widgets | tail -1)
+          echo "MOBAI_SIM_UDID=$UDID" >> "$GITHUB_ENV"
 
       - name: Verify Prism on the simulator
         run: |
