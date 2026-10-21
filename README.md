@@ -1,6 +1,6 @@
 # Prism iOS
 
-An iOS 27+ SwiftUI app for https://prism.codystechcorner.com/ using WKWebView.
+An iOS 26+ SwiftUI app for https://prism.codystechcorner.com/ using WKWebView.
 The website provides sign-in, library browsing, and playback. Cookies and website
 storage persist across launches. The shell enables inline video, AirPlay, and
 Picture in Picture; actual availability depends on the website player and media.
