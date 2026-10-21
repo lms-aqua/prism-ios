@@ -1,5 +1,6 @@
 import SwiftUI
 import AVKit
+import Security
 
 // The native client owns its own cookie session. Browser cookies are never embedded.
 private struct PrismUser: Decodable { let id: Int; let name: String }
@@ -64,6 +65,50 @@ private struct PrismFailure: LocalizedError {
     var errorDescription: String? { message }
 }
 
+private enum PrismCookieJar {
+    private struct StoredCookie: Codable {
+        let name: String
+        let value: String
+        let domain: String
+        let path: String
+        let secure: Bool
+        let expires: Date?
+    }
+    private static let key: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: "com.codystechcorner.prism.session",
+        kSecAttrAccount as String: "cookies"
+    ]
+    static func save() {
+        let cookies = (HTTPCookieStorage.shared.cookies(for: URL(string: "https://prism.codystechcorner.com")!) ?? []).map {
+            StoredCookie(name: $0.name, value: $0.value, domain: $0.domain, path: $0.path, secure: $0.isSecure, expires: $0.expiresDate)
+        }
+        guard let data = try? JSONEncoder().encode(cookies) else { return }
+        if SecItemUpdate(key as CFDictionary, [kSecValueData as String: data] as CFDictionary) == errSecItemNotFound {
+            var attributes = key
+            attributes[kSecValueData as String] = data
+            attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            SecItemAdd(attributes as CFDictionary, nil)
+        }
+    }
+    static func restore() {
+        var query = key
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data, let cookies = try? JSONDecoder().decode([StoredCookie].self, from: data) else { return }
+        for stored in cookies where stored.expires == nil || stored.expires! > Date() {
+            var properties: [HTTPCookiePropertyKey: Any] = [
+                .name: stored.name, .value: stored.value, .domain: stored.domain,
+                .path: stored.path, .secure: stored.secure ? "TRUE" : "FALSE", .version: "0"
+            ]
+            if let expires = stored.expires { properties[.expires] = expires }
+            if let cookie = HTTPCookie(properties: properties) { HTTPCookieStorage.shared.setCookie(cookie) }
+        }
+    }
+    static func clear() { SecItemDelete(key as CFDictionary) }
+}
 private final class PrismRedirectPolicy: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask,
                     willPerformHTTPRedirection response: HTTPURLResponse,
@@ -80,6 +125,7 @@ private final class PrismRedirectPolicy: NSObject, URLSessionTaskDelegate {
 @MainActor
 private final class PrismAPI: ObservableObject {
     static let origin = URL(string: "https://prism.codystechcorner.com")!
+    init() { PrismCookieJar.restore() }
     @Published var user: PrismUser?
     @Published var checkingSession = true
     private var csrfToken: String?
@@ -136,6 +182,11 @@ private final class PrismAPI: ObservableObject {
         guard let reply: AuthReply = try? await get("/api/auth/me") else { return }
         csrfToken = reply.csrfToken
         user = reply.user
+        PrismCookieJar.save()
+        if let staleSession = UserDefaults.standard.string(forKey: "activePlaybackSession") {
+            _ = try? await request("/api/playback/sessions/\(staleSession)", method: "DELETE")
+            UserDefaults.standard.removeObject(forKey: "activePlaybackSession")
+        }
     }
     func login(name: String, password: String, code: String) async throws {
         var payload: [String: Any] = ["name": name, "password": password]
@@ -144,11 +195,17 @@ private final class PrismAPI: ObservableObject {
         let reply: AuthReply = try await get("/api/auth/me")
         csrfToken = reply.csrfToken
         user = reply.user
+        PrismCookieJar.save()
+        if let staleSession = UserDefaults.standard.string(forKey: "activePlaybackSession") {
+            _ = try? await request("/api/playback/sessions/\(staleSession)", method: "DELETE")
+            UserDefaults.standard.removeObject(forKey: "activePlaybackSession")
+        }
     }
     func logout() async throws {
         _ = try await request("/api/auth/logout", method: "POST")
         user = nil
         csrfToken = nil
+        PrismCookieJar.clear()
         for cookie in HTTPCookieStorage.shared.cookies(for: Self.origin) ?? [] {
             HTTPCookieStorage.shared.deleteCookie(cookie)
         }
@@ -520,6 +577,7 @@ private final class PlaybackModel: ObservableObject {
                 "capabilities": ["h264": true, "aac": true, "native_hls": true, "hevc": false, "hevc_main10": false, "ac3": false, "eac3": false]
             ])
             session = created
+            UserDefaults.standard.set(created.id, forKey: "activePlaybackSession")
             if stopped || Task.isCancelled {
                 _ = try? await api.request("/api/playback/sessions/\(created.id)", method: "DELETE")
                 return
@@ -635,6 +693,7 @@ private final class PlaybackModel: ObservableObject {
         player.pause()
         try? await save()
         if let session { _ = try? await api.request("/api/playback/sessions/\(session.id)", method: "DELETE") }
+        UserDefaults.standard.removeObject(forKey: "activePlaybackSession")
         statusObservation = nil
         if let timeObserver { player.removeTimeObserver(timeObserver); self.timeObserver = nil }
         player.replaceCurrentItem(with: nil)

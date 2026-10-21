@@ -711,12 +711,26 @@ jobs:
         env:
           MOBAI_API_KEY: ${{ secrets.MOBAI_API_KEY }}
         run: |
+          set -euo pipefail
+          cp .builder/native-watch.sh "$RUNNER_TEMP/prism-native-watch.sh"
           mobai-ci share \
             --device "$MOBAI_SIM_UDID" \
             --app "${{ steps.build.outputs.app_path }}" \
             --duration "${{ steps.params.outputs.duration }}" \
             --label "${{ github.repository }} · ${{ steps.params.outputs.build_id }}" \
-            --wait-device 4m --startup-timeout 5m
+            --wait-device 4m --startup-timeout 5m &
+          SHARE_PID=$!
+          WATCH_PID=''
+          cleanup() {
+            if [ -n "$WATCH_PID" ]; then kill "$WATCH_PID" 2>/dev/null || true; fi
+            kill "$SHARE_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          # The simulator is already booted and tested, so the watcher can rebuild
+          # in the same DerivedData and reinstall without replacing the device.
+          bash "$RUNNER_TEMP/prism-native-watch.sh" "$MOBAI_SIM_UDID" "${{ steps.build.outputs.app_path }}" &
+          WATCH_PID=$!
+          wait "$SHARE_PID"
 
       # The tag exists only to start this run, so it leaves with it. Deleting
       # a tag fires no push event, so this cannot start another run.

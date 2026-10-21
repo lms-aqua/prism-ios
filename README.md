@@ -65,8 +65,9 @@ Native compilation, simulator installation and the login-screen UI smoke test
 passed in Actions run 39684099206. Authenticated browsing and playback still need
 end-to-end verification. Native capability reporting uses a conservative H.264/AAC baseline.
 Transcoded streams start at the server offset; native player seeking is limited
-to the HLS timeline the server provides. Full-file server-side seeking, external
-subtitle selection, audio-track switching and downloads are not implemented.
+to the HLS timeline the server provides. Custom transport, server-side seek requests, embedded audio/subtitle selection
+and speed controls are implemented. Track changes and seek behavior still need
+end-to-end verification. External subtitle assets and downloads are not implemented.
 Heartbeat, progress and stop use the observed web-client API contracts but still
 need authenticated verification on iOS. Device installation requires Apple signing.
 
@@ -91,3 +92,17 @@ a running simulator and retained DerivedData; GitHub hosted jobs start afresh.
 Builder's Flutter/React Native hot reload does not apply to this SwiftUI app.
 The simulator workflow compiles before booting the simulator, so compiler failures
 return without waiting for device preparation. Evidence is uploaded as an artifact.
+
+## Live native development in a shared simulator
+
+While the shared CI simulator is running, push native changes to main. Its
+background watcher incrementally rebuilds changed Prism/ or Prism.xcodeproj/
+files on the same runner, reinstalls the app and launches it. Compile failures
+leave the prior installed app intact. The session and DerivedData stay warm;
+this is a rebuild/relaunch loop, not Swift hot reload. Watch native-watch lines
+in the Share the simulator job log. The 90-minute job limit still applies.
+
+Prism stores its own session cookies in the iOS Keychain to restore sign-in after
+relaunching. Account passwords and authenticator codes are never persisted.
+Expired or revoked server sessions still require sign-in. An interrupted playback
+session is cleaned up on the next authenticated launch.
