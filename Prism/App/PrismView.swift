@@ -649,6 +649,8 @@ private struct MovieSurface: UIViewControllerRepresentable {
         let controller = AVPlayerViewController()
         controller.player = player
         controller.showsPlaybackControls = false
+        controller.allowsVideoFrameAnalysis = false
+        controller.view.isUserInteractionEnabled = false
         controller.allowsPictureInPicturePlayback = true
         return controller
     }
@@ -693,11 +695,15 @@ private struct PlaybackScreen: View {
         GeometryReader { geometry in
             ZStack {
                 Color.black.ignoresSafeArea()
-                MovieSurface(player: model.player, fill: fill).ignoresSafeArea()
-                    .overlay(Color.clear.contentShape(Rectangle()).onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.2)) { controlsVisible.toggle() }
-                        interaction += 1
-                    })
+                MovieSurface(player: model.player, fill: fill).ignoresSafeArea().allowsHitTesting(false)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { controlsVisible.toggle() }
+                    interaction += 1
+                } label: {
+                    Color.black.opacity(0.001).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).ignoresSafeArea()
+                .accessibilityLabel(controlsVisible ? "Hide playback controls" : "Show playback controls")
                 if controlsVisible || model.busy || model.error != nil {
                     LinearGradient(colors: [.black.opacity(0.8), .clear, .black.opacity(0.85)], startPoint: .top, endPoint: .bottom)
                         .ignoresSafeArea().allowsHitTesting(false)
@@ -731,7 +737,7 @@ private struct PlaybackScreen: View {
         .statusBarHidden()
         .task { await model.run() }
         .task(id: interaction) {
-            try? await Task.sleep(for: .seconds(4))
+            try? await Task.sleep(for: .seconds(7))
             guard !Task.isCancelled, !settingsVisible, !dragging, !model.busy, !model.isPaused else { return }
             withAnimation(.easeInOut(duration: 0.25)) { controlsVisible = false }
         }
