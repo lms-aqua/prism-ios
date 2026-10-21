@@ -99,3 +99,19 @@ heartbeat were observed in the user's desktop browser. That is not an iOS test.
 A native SwiftUI implementation now uses these contracts for browse/search,
 login, title/show details and AVPlayer sessions. No supplied session cookies or
 CSRF token values have been saved in source or documentation.
+
+## Interactive native verification — 2026-10-21
+
+In the shared CI simulator prism-cloud-5663dfb:
+- Native username/password plus authenticator-code sign-in completed successfully.
+- Home loaded continue-watching and recently-added titles from the authenticated API.
+- A player was opened and its screenshot showed decoded movie imagery. AVKit
+  controls were accessible. Audio output and continuous playback timing were not
+  verified, nor were full-file seek and resume accuracy.
+- Native Search with query Odyssey returned The Odyssey (2026).
+
+Remote input gotchas: a focused input may have no visible software keyboard.
+Use a targeted type action. For the navigation search field, tap first, observe
+its focused state/new bounds, then type with its SearchField predicate and
+ dismiss_keyboard=false. Dismissing search through the remote helper may close
+or cancel the search. No credentials or authenticator codes are recorded here.

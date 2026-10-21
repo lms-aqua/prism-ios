@@ -33,6 +33,19 @@ private struct SearchReply: Decodable {
 private struct Season: Decodable, Identifiable { let id: Int; let number: Int; let title: String? }
 private struct ShowReply: Decodable { let seasons: [Season]; let nextItem: MediaTitle? }
 private struct SeasonReply: Decodable { let episodes: [MediaTitle] }
+private struct PlaybackTrack: Decodable, Identifiable {
+    let index: Int
+    let type: String
+    let codec: String
+    let language: String?
+    let title: String?
+    var id: Int { index }
+    var label: String {
+        let languageName = language.flatMap { Locale.current.localizedString(forLanguageCode: $0) }
+        let name = title.flatMap { $0.isEmpty ? nil : $0 } ?? languageName ?? "Track \(index + 1)"
+        return "\(name) · \(codec.uppercased())"
+    }
+}
 private struct PlaybackReply: Decodable {
     let id: String
     let state: String
@@ -41,6 +54,9 @@ private struct PlaybackReply: Decodable {
     let offset: Double?
     let duration: Double?
     let streamUrl: String?
+    let audioIndex: Int?
+    let subtitleIndex: Int?
+    let tracks: [PlaybackTrack]?
 }
 private struct ServerProblem: Decodable { let message: String? }
 private struct PrismFailure: LocalizedError {
@@ -478,17 +494,27 @@ private final class PlaybackModel: ObservableObject {
     let player = AVPlayer()
     @Published var busy = true
     @Published var error: String?
+    @Published var settingsError: String?
     @Published var duration = 0.0
     @Published var position = 0.0
+    @Published var isPaused = false
+    @Published var speed: Float = 1
+    @Published var audioTracks: [PlaybackTrack] = []
+    @Published var subtitleTracks: [PlaybackTrack] = []
+    @Published var audioIndex: Int?
+    @Published var subtitleIndex: Int?
     private let api: PrismAPI
     private let item: MediaTitle
     private var session: PlaybackReply?
     private var statusObservation: NSKeyValueObservation?
+    private var timeObserver: Any?
     private var stopped = false
     init(api: PrismAPI, item: MediaTitle) { self.api = api; self.item = item }
+
     func run() async {
         do {
-            // Conservative baseline. The server may optimize incompatible files.
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
+            try AVAudioSession.sharedInstance().setActive(true)
             let created = try await api.playback("/api/playback/sessions", method: "POST", body: [
                 "movie_id": item.id, "quality": "original", "position": item.progress?.position ?? 0,
                 "capabilities": ["h264": true, "aac": true, "native_hls": true, "hevc": false, "hevc_main10": false, "ac3": false, "eac3": false]
@@ -498,20 +524,33 @@ private final class PlaybackModel: ObservableObject {
                 _ = try? await api.request("/api/playback/sessions/\(created.id)", method: "DELETE")
                 return
             }
-            try Task.checkCancellation()
+            timeObserver = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self, !self.busy else { return }
+                    self.position = self.currentPosition()
+                }
+            }
             try await prepare(created)
             while !Task.isCancelled && !stopped {
                 try await Task.sleep(for: .seconds(10))
                 try Task.checkCancellation()
-                try await save()
+                if !busy { try await save() }
             }
         } catch {
             if !Task.isCancelled && !stopped { self.error = error.localizedDescription; busy = false; player.pause() }
         }
     }
+
+    private var timelineOffset: Double {
+        guard let session, session.streamUrl?.contains("/hls/") == true else { return 0 }
+        return session.offset ?? 0
+    }
+
     private func prepare(_ initial: PlaybackReply) async throws {
         var current = initial
         for _ in 0..<60 {
+            try Task.checkCancellation()
+            if stopped { throw CancellationError() }
             if current.state == "ready", current.streamUrl != nil { break }
             if ["failed", "error", "stopped"].contains(current.state) { throw PrismFailure(message: "Prism couldn’t prepare this video.") }
             try await Task.sleep(for: .seconds(1))
@@ -523,27 +562,64 @@ private final class PlaybackModel: ObservableObject {
         }
         session = current
         duration = current.duration ?? item.duration ?? 0
+        audioTracks = (current.tracks ?? []).filter { $0.type == "audio" }
+        subtitleTracks = (current.tracks ?? []).filter { $0.type == "subtitle" }
+        audioIndex = current.audioIndex
+        subtitleIndex = current.subtitleIndex
         let cookies = HTTPCookieStorage.shared.cookies(for: url) ?? []
-        let asset = AVURLAsset(url: url, options: [AVURLAssetHTTPCookiesKey: cookies])
-        let playerItem = AVPlayerItem(asset: asset)
+        let playerItem = AVPlayerItem(asset: AVURLAsset(url: url, options: [AVURLAssetHTTPCookiesKey: cookies]))
         statusObservation = playerItem.observe(\.status, options: [.new]) { [weak self] observed, _ in
             if observed.status == .failed {
                 Task { @MainActor [weak self] in self?.error = "Couldn’t play this stream. Close the player and try again."; self?.busy = false }
             }
         }
         player.replaceCurrentItem(with: playerItem)
-        // Transcoded HLS starts at the server offset. Direct streams use full-file time.
-        if current.mode != "transcode", let position = current.position, position > 0 {
+        if timelineOffset == 0, let position = current.position, position > 0 {
             await player.seek(to: CMTime(seconds: position, preferredTimescale: 600))
         }
         try Task.checkCancellation()
+        if stopped { throw CancellationError() }
+        position = current.position ?? timelineOffset
         busy = false
-        player.play()
+        if !isPaused { player.playImmediately(atRate: speed) }
     }
+
     private func currentPosition() -> Double {
         let time = player.currentTime().seconds
         guard time.isFinite else { return session?.position ?? item.progress?.position ?? 0 }
-        return max(0, time + (session?.mode == "transcode" ? (session?.offset ?? 0) : 0))
+        let value = max(0, time + timelineOffset)
+        return duration > 0 ? min(duration, value) : value
+    }
+    func togglePause() {
+        isPaused.toggle()
+        if isPaused { player.pause() } else { player.playImmediately(atRate: speed) }
+    }
+    func setSpeed(_ value: Float) {
+        speed = value
+        if !isPaused && !busy { player.playImmediately(atRate: speed) }
+    }
+    func seek(to value: Double) async {
+        await update(["position": max(0, min(value, max(0, duration - 1)))])
+    }
+    func selectAudio(_ index: Int?) async {
+        await update(["audio_index": index.map { $0 as Any } ?? NSNull(), "position": currentPosition()])
+    }
+    func selectSubtitle(_ index: Int?) async {
+        await update(["subtitle_index": index.map { $0 as Any } ?? NSNull(), "position": currentPosition()])
+    }
+    private func update(_ body: [String: Any]) async {
+        guard let session, !busy, !stopped else { return }
+        busy = true; settingsError = nil
+        player.pause()
+        do {
+            let updated = try await api.playback("/api/playback/sessions/\(session.id)", method: "PATCH", body: body)
+            try await prepare(updated)
+        } catch {
+            guard !stopped else { return }
+            busy = false
+            settingsError = error.localizedDescription
+            if !isPaused { player.playImmediately(atRate: speed) }
+        }
     }
     private func save() async throws {
         guard let session else { return }
@@ -560,39 +636,205 @@ private final class PlaybackModel: ObservableObject {
         try? await save()
         if let session { _ = try? await api.request("/api/playback/sessions/\(session.id)", method: "DELETE") }
         statusObservation = nil
+        if let timeObserver { player.removeTimeObserver(timeObserver); self.timeObserver = nil }
         player.replaceCurrentItem(with: nil)
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
+}
+
+private struct MovieSurface: UIViewControllerRepresentable {
+    let player: AVPlayer
+    let fill: Bool
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = player
+        controller.showsPlaybackControls = false
+        controller.allowsPictureInPicturePlayback = true
+        return controller
+    }
+    func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
+        controller.videoGravity = fill ? .resizeAspectFill : .resizeAspect
+    }
+}
+
+private struct AirPlayControl: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let view = AVRoutePickerView()
+        view.tintColor = .white
+        view.activeTintColor = .systemIndigo
+        view.prioritizesVideoDevices = true
+        return view
+    }
+    func updateUIView(_ view: AVRoutePickerView, context: Context) {}
 }
 
 private struct PlaybackScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model: PlaybackModel
+    @State private var controlsVisible = true
+    @State private var settingsVisible = false
+    @State private var fill = false
+    @State private var dragging = false
+    @State private var scrubPosition = 0.0
+    @State private var interaction = 0
     let item: MediaTitle
     init(api: PrismAPI, item: MediaTitle) {
         self.item = item
         _model = StateObject(wrappedValue: PlaybackModel(api: api, item: item))
     }
+    private func timestamp(_ value: Double) -> String {
+        guard value.isFinite else { return "0:00" }
+        let seconds = Int(max(0, value))
+        return seconds >= 3600 ? String(format: "%d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60)
+            : String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            Color.black.ignoresSafeArea()
-            VideoPlayer(player: model.player).ignoresSafeArea(edges: .bottom)
-            if model.busy { ProgressView("Preparing your video…").frame(maxWidth: .infinity, maxHeight: .infinity) }
-            if let error = model.error {
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.circle").font(.largeTitle)
-                    Text("Couldn’t play this title").font(.title2.bold())
-                    Text(error).multilineTextAlignment(.center).foregroundStyle(.secondary)
-                    Button("Close player") { dismiss() }.buttonStyle(.borderedProminent)
-                }.padding(28).frame(maxWidth: .infinity, maxHeight: .infinity).background(.black)
+        GeometryReader { geometry in
+            ZStack {
+                Color.black.ignoresSafeArea()
+                MovieSurface(player: model.player, fill: fill).ignoresSafeArea()
+                    .overlay(Color.clear.contentShape(Rectangle()).onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) { controlsVisible.toggle() }
+                        interaction += 1
+                    })
+                if controlsVisible || model.busy || model.error != nil {
+                    LinearGradient(colors: [.black.opacity(0.8), .clear, .black.opacity(0.85)], startPoint: .top, endPoint: .bottom)
+                        .ignoresSafeArea().allowsHitTesting(false)
+                    VStack(spacing: 0) {
+                        header
+                        Spacer()
+                        if model.error == nil {
+                            if model.busy {
+                                VStack(spacing: 14) { ProgressView().tint(.white); Text("Getting your movie ready").font(.subheadline).foregroundStyle(.white.opacity(0.7)) }
+                            } else { transport }
+                        }
+                        Spacer()
+                        if model.error == nil { timeline }
+                    }
+                    .padding(.horizontal, geometry.size.width > 600 ? 36 : 22)
+                    .padding(.vertical, 16)
+                    .transition(.opacity)
+                }
+                if let error = model.error {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.circle").font(.largeTitle)
+                        Text("Couldn’t play this title").font(.title2.bold())
+                        Text(error).font(.subheadline).foregroundStyle(.white.opacity(0.7)).multilineTextAlignment(.center)
+                        Button("Close player") { dismiss() }.buttonStyle(.borderedProminent)
+                    }.padding(32)
+                }
             }
-            Button { dismiss() } label: {
-                Label("Close", systemImage: "xmark").labelStyle(.iconOnly).font(.headline)
-                    .padding(16).background(.ultraThinMaterial, in: Circle())
-            }.padding(16).accessibilityLabel("Close player")
+            .foregroundStyle(.white)
         }
+        .persistentSystemOverlays(.hidden)
+        .statusBarHidden()
         .task { await model.run() }
+        .task(id: interaction) {
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled, !settingsVisible, !dragging, !model.busy, !model.isPaused else { return }
+            withAnimation(.easeInOut(duration: 0.25)) { controlsVisible = false }
+        }
+        .onChange(of: model.busy) { _, busy in if !busy { interaction += 1 } }
         .onDisappear { Task { await model.stop() } }
-        .onChange(of: scenePhase) { _, phase in if phase != .active { model.player.pause() } }
+        .onChange(of: scenePhase) { _, phase in if phase != .active { model.player.pause(); model.isPaused = true; controlsVisible = true } }
+        .sheet(isPresented: $settingsVisible, onDismiss: { interaction += 1 }) { settings }
+        .alert("Couldn’t change playback", isPresented: Binding(get: { model.settingsError != nil }, set: { if !$0 { model.settingsError = nil } })) {
+            Button("OK") { model.settingsError = nil }
+        } message: { Text(model.settingsError ?? "") }
+    }
+    private var header: some View {
+        HStack(alignment: .center, spacing: 16) {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.down").font(.system(size: 19, weight: .semibold)).frame(width: 44, height: 44).background(.white.opacity(0.12), in: Circle())
+            }.accessibilityLabel("Close player")
+            VStack(alignment: .leading, spacing: 5) {
+                Text("NOW PLAYING").font(.system(size: 10, weight: .semibold, design: .rounded)).tracking(2).foregroundStyle(.white.opacity(0.55))
+                Text(item.title).font(.headline).lineLimit(1)
+                if let show = item.episode?.showTitle { Text(show).font(.caption).foregroundStyle(.white.opacity(0.6)).lineLimit(1) }
+            }
+            Spacer(minLength: 0)
+            Button { settingsVisible = true; interaction += 1 } label: {
+                Image(systemName: "slider.horizontal.3").font(.system(size: 21)).frame(width: 44, height: 44).background(.white.opacity(0.12), in: Circle())
+            }.accessibilityLabel("Playback settings")
+        }
+    }
+    private var transport: some View {
+        HStack(spacing: 38) {
+            Button { interaction += 1; Task { await model.seek(to: model.position - 10) } } label: {
+                Image(systemName: "gobackward.10").font(.system(size: 30, weight: .medium)).frame(width: 50, height: 60)
+            }.accessibilityLabel("Back 10 seconds")
+            Button { model.togglePause(); interaction += 1 } label: {
+                Image(systemName: model.isPaused ? "play.fill" : "pause.fill")
+                    .font(.system(size: 30, weight: .semibold)).foregroundStyle(.black)
+                    .frame(width: 76, height: 76).background(.white, in: Circle())
+            }.accessibilityLabel(model.isPaused ? "Play" : "Pause")
+            Button { interaction += 1; Task { await model.seek(to: model.position + 10) } } label: {
+                Image(systemName: "goforward.10").font(.system(size: 30, weight: .medium)).frame(width: 50, height: 60)
+            }.accessibilityLabel("Forward 10 seconds")
+        }
+    }
+    private var timeline: some View {
+        VStack(spacing: 8) {
+            Slider(value: Binding(get: { dragging ? scrubPosition : min(model.position, max(1, model.duration)) }, set: { scrubPosition = $0 }),
+                   in: 0...max(1, model.duration), onEditingChanged: { editing in
+                if editing { scrubPosition = model.position; dragging = true } else {
+                    dragging = false; Task { await model.seek(to: scrubPosition) }
+                }
+                interaction += 1
+            })
+            .tint(.white).disabled(model.busy || model.duration <= 0).accessibilityLabel("Playback position")
+            HStack {
+                Text(timestamp(dragging ? scrubPosition : model.position))
+                Spacer()
+                Text("−" + timestamp(model.duration - (dragging ? scrubPosition : model.position)))
+            }.font(.system(size: 12, weight: .medium, design: .monospaced)).foregroundStyle(.white.opacity(0.65))
+            HStack(spacing: 16) {
+                Button { settingsVisible = true; interaction += 1 } label: {
+                    Label("Audio & subtitles", systemImage: "captions.bubble").font(.system(size: 12, weight: .medium)).padding(.vertical, 12)
+                }.disabled(model.busy)
+                Spacer()
+                AirPlayControl().frame(width: 44, height: 44).accessibilityLabel("AirPlay")
+                Button { fill.toggle(); interaction += 1 } label: {
+                    Image(systemName: fill ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right").font(.system(size: 19)).frame(width: 44, height: 44)
+                }.accessibilityLabel(fill ? "Fit video" : "Fill screen")
+            }
+        }
+    }
+    private var settings: some View {
+        NavigationStack {
+            Form {
+                Section("Audio") {
+                    Button { Task { await model.selectAudio(nil) } } label: {
+                        HStack { Text("Automatic"); Spacer(); if model.audioIndex == nil { Image(systemName: "checkmark").foregroundStyle(.indigo) } }
+                    }.tint(.primary).disabled(model.busy)
+                    ForEach(model.audioTracks) { track in
+                        Button { Task { await model.selectAudio(track.index) } } label: {
+                            HStack { Text(track.label); Spacer(); if model.audioIndex == track.index { Image(systemName: "checkmark").foregroundStyle(.indigo) } }
+                        }.tint(.primary).disabled(model.busy)
+                    }
+                }
+                Section("Subtitles") {
+                    Button { Task { await model.selectSubtitle(nil) } } label: {
+                        HStack { Text("Off"); Spacer(); if model.subtitleIndex == nil { Image(systemName: "checkmark").foregroundStyle(.indigo) } }
+                    }.tint(.primary).disabled(model.busy)
+                    ForEach(model.subtitleTracks) { track in
+                        Button { Task { await model.selectSubtitle(track.index) } } label: {
+                            HStack { Text(track.label); Spacer(); if model.subtitleIndex == track.index { Image(systemName: "checkmark").foregroundStyle(.indigo) } }
+                        }.tint(.primary).disabled(model.busy)
+                    }
+                    if model.subtitleTracks.isEmpty { Text("No embedded subtitles available").foregroundStyle(.secondary).font(.caption) }
+                }
+                Section("Playback speed") {
+                    Picker("Speed", selection: Binding(get: { model.speed }, set: { model.setSpeed($0) })) {
+                        ForEach([Float(0.5), 0.75, 1, 1.25, 1.5, 2], id: \.self) { rate in Text(rate == 1 ? "Normal" : "\(rate.formatted())×").tag(rate) }
+                    }
+                }
+                if model.busy { Section { HStack { ProgressView(); Text("Updating playback…").foregroundStyle(.secondary) } } }
+            }
+            .navigationTitle("Playback settings").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { settingsVisible = false } } }
+        }
+        .presentationDetents([.medium, .large]).presentationDragIndicator(.visible).preferredColorScheme(.dark)
     }
 }
