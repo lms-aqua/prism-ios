@@ -248,10 +248,10 @@ private struct PrismLogin: View {
                     }
                     VStack(spacing: 16) {
                         TextField("Username", text: $name)
-                            .textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        SecureField("Password", text: $password).textContentType(.password)
+                            .textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityIdentifier("prism.username")
+                        SecureField("Password", text: $password).textContentType(.password).accessibilityIdentifier("prism.password")
                         TextField("Two-factor code (if enabled)", text: $code)
-                            .textContentType(.oneTimeCode).keyboardType(.numberPad)
+                            .textContentType(.oneTimeCode).keyboardType(.numberPad).accessibilityIdentifier("prism.otp")
                     }
                     .textFieldStyle(.roundedBorder)
                     if let error { Text(error).foregroundStyle(.red).accessibilityIdentifier("loginError") }
@@ -269,7 +269,7 @@ private struct PrismLogin: View {
                             .padding(.vertical, 8)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(busy || name.isEmpty || password.isEmpty)
+                    .disabled(busy || name.isEmpty || password.isEmpty).accessibilityIdentifier("prism.signIn")
                 }
                 .padding(28).frame(maxWidth: 480).frame(maxWidth: .infinity).padding(.top, 50)
             }
@@ -293,16 +293,27 @@ private struct PrismTabs: View {
     }
 }
 
-private struct TitleCard: View {
-    let item: MediaTitle
+private struct MediaArtwork: View {
+    let path: String?
+    let height: CGFloat
+    let cornerRadius: CGFloat
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            AsyncImage(url: item.posterUrl.flatMap { PrismAPI.url($0) }) { image in
+        GeometryReader { geometry in
+            AsyncImage(url: path.flatMap { PrismAPI.url($0) }) { image in
                 image.resizable().scaledToFill()
             } placeholder: {
                 Rectangle().fill(.quaternary).overlay { Image(systemName: "film").font(.title).foregroundStyle(.secondary) }
             }
-            .frame(height: 210).frame(maxWidth: .infinity).clipped().clipShape(RoundedRectangle(cornerRadius: 12))
+            .frame(width: geometry.size.width, height: height).clipped()
+        }
+        .frame(height: height).clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+    }
+}
+private struct TitleCard: View {
+    let item: MediaTitle
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            MediaArtwork(path: item.posterUrl, height: 210, cornerRadius: 12)
             Text(item.title).font(.subheadline.weight(.semibold)).lineLimit(2)
             if let year = item.year { Text(String(year)).font(.caption).foregroundStyle(.secondary) }
         }
@@ -475,10 +486,7 @@ private struct TitleScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                AsyncImage(url: (detail?.backdropUrl ?? item.backdropUrl ?? item.posterUrl).flatMap { PrismAPI.url($0) }) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: { Rectangle().fill(.quaternary).overlay { Image(systemName: "play.rectangle").font(.largeTitle) } }
-                .frame(height: 230).frame(maxWidth: .infinity).clipped().clipShape(RoundedRectangle(cornerRadius: 18))
+                MediaArtwork(path: detail?.backdropUrl ?? item.backdropUrl ?? item.posterUrl, height: 230, cornerRadius: 18)
                 Text(item.title).font(.largeTitle.bold())
                 if let year = item.year { Text(String(year)).foregroundStyle(.secondary) }
                 if busy { ProgressView() }
@@ -821,7 +829,7 @@ private struct PlaybackScreen: View {
             Spacer(minLength: 0)
             Button { settingsVisible = true; interaction += 1 } label: {
                 Image(systemName: "slider.horizontal.3").font(.system(size: 21)).frame(width: 44, height: 44).background(.white.opacity(0.12), in: Circle())
-            }.accessibilityLabel("Playback settings")
+            }.accessibilityLabel("Playback settings").accessibilityIdentifier("prism.playback.settings")
         }
     }
     private var transport: some View {
