@@ -123,6 +123,7 @@ jobs:
         with:
           boot-sim: true # UDID lands in $MOBAI_SIM_UDID
           sim-slim-only: widgets
+          sim-cache-key: prism-native-v2
           decision-cache: false
 
       - name: Setup Xcode
